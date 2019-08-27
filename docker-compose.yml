@@ -1,0 +1,11 @@
+version: '2'
+services:
+    web:
+        depends_on:
+        - api
+        ports: 
+        - 8088:80
+        image: smhi-nginx:latest
+    api:
+        image: smhi-api:latest
+        entrypoint: ./smhi-api

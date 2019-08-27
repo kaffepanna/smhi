@@ -1,84 +1,74 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ConstraintKinds #-}
+{-# LANGUAGE RankNTypes, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ConstraintKinds, DeriveAnyClass, DeriveGeneric, TypeApplications, OverloadedStrings #-}
 module Persistence where
 
 import Prelude hiding (log)
 
 import Control.Monad.Reader
 import Control.Monad (forM_)
-import Database.SQLite.Simple
+import qualified Database.Beam.Postgres as Pg
+import qualified Database.Beam.Postgres.Full as Pgf
+import Database.Beam as B
+import Database.Beam.Backend.SQL
 import Colog
 
+import Data.Maybe
+import Data.Time
 import Data.Text (pack)
-import Persistence.Queries
-import Types
+import Types as T
 import Network
 
-newtype Persistence = Persistence { _connection :: Connection }
+newtype Persistence = Persistence { _runBeam :: forall a. Pg.Pg a -> IO a }
 
-type WithPersistence env m = (MonadReader env m, MonadIO m, HasPersistence env)
+type WithBeam env m = (MonadReader env m, MonadIO m, HasBeam env)
 
-class HasPersistence env where
+class HasBeam env where
     getPersistence :: env -> Persistence
 
-instance HasPersistence Persistence where
+instance HasBeam Persistence where
     getPersistence = id
 
-instance ToRow Hour where
-    toRow (Hour a as ae t p) = toRow (a, as, ae, t, p)
+data SmhiDb f = SmhiDb { smhiForecasts :: f (TableEntity ForecastT)
+                       , smhiObservations :: f (TableEntity ObservationT)
+                       } deriving (Generic, Database be)
 
-instance FromRow Hour where
-    fromRow = Hour <$> field
-                   <*> field
-                   <*> field
-                   <*> field
-                   <*> field
+smhiDb :: DatabaseSettings be SmhiDb
+smhiDb = defaultDbSettings
 
-instance FromRow MAE where
-    fromRow = MAE <$> field
-                  <*> field
-                  <*> field
-                  <*> field
+upsertForecasts :: (WithLog env Message m, WithBeam env m) => [Forecast] -> m ()
+upsertForecasts forecasts = do
+   Persistence runBeam <- asks getPersistence
+   liftIO . runBeam . runInsert $
+       Pgf.insert (smhiForecasts smhiDb) (insertValues forecasts) $
+           Pgf.onConflict
+            Pgf.anyConflict
+            Pgf.onConflictDoNothing
 
-instance FromRow HourOffset where
-    fromRow = HourOffset <$> field
-                         <*> field
-                         <*> field
+upsertObservations :: (WithLog env Message m, WithBeam env m) => [Observation] -> m ()
+upsertObservations observations = do
+   Persistence runBeam <- asks getPersistence
+   liftIO . runBeam . runInsert $
+       Pgf.insert (smhiObservations smhiDb) (insertValues observations) $
+           Pgf.onConflict
+            Pgf.anyConflict
+            Pgf.onConflictDoNothing
 
-getHourOffsets :: (WithPersistence env m) => m [HourOffset]
-getHourOffsets = do
-    Persistence conn <- asks getPersistence
-    liftIO $ query_ conn getHoursQ
+hoursSinceEpoch_ c = valueExpr_ $ as_ @Int $ customExpr_ (\t -> "CAST (EXTRACT(EPOCH FROM " <> t <> ") AS Int)/3600") c
 
-getMAE :: (WithLog env Message m, WithPersistence env m) => m [MAE]
+getMAE :: (WithLog env Message m, WithBeam env m) => m [MAE]
 getMAE = do
-    Persistence conn <- asks getPersistence
-    liftIO $ query_ conn getMAEQ
+    Persistence runBeam <- asks getPersistence
+    r <- liftIO . runBeam . runSelectReturningList . select $
+        aggregate_ (\(obs, fcs) -> let age = group_ $ hoursSinceEpoch_ (start obs) - hoursSinceEpoch_ (T.time fcs)
+                                       err = fromMaybe_ 0 (avg_ $ abs (temperature fcs - temperature obs))
+                                       mn  = fromMaybe_ 0 (min_ $ abs (temperature fcs - temperature obs))
+                                       mx  = fromMaybe_ 0 (max_ $ abs (temperature fcs - temperature obs))
 
-insert :: (WithLog env Message m, WithPersistence env m) => Query -> [Hour] -> m ()
-insert query hours = do
-    Persistence conn <- asks getPersistence
-    cs <- forM hours $ \h -> do
-            liftIO $ execute conn query h
-            liftIO $ changes conn
-    let c = sum cs
-    log I $ "inserted " <>  pack (show c) <> " records"
+                                    in (age, err, mx, mn)) $ do
+            fcs <- all_ (smhiForecasts smhiDb)
+            obs <- all_ (smhiObservations smhiDb)
 
-upsert :: (WithLog env Message m, WithPersistence env m) => RecordType -> [Hour] -> m ()
-upsert Forecast     = insert insertForecastQ
-upsert Observation  = insert insertObservationQ
+            guard_ (start obs ==. start fcs)
+            pure (obs, fcs)
+    return $ uncurry4 MAE <$> r
 
-
-prepareQ :: (WithLog env Message m, WithPersistence env m) => Query -> m ()
-prepareQ q = do
-    Persistence conn <- asks getPersistence
-    liftIO $ execute_ conn q
-
-prepare :: (WithLog env Message m, WithPersistence env m) => RecordType -> m ()
-prepare Forecast    = prepareQ createForecastQ
-prepare Observation = prepareQ createObservationsQ
-
-initPersistence :: (MonadIO m) => String -> m Persistence
-initPersistence str = do
-    conn <- liftIO $ open str
-    return $ Persistence conn
-
+uncurry4 f (a,b,c,d) = f a b c d

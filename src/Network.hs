@@ -18,8 +18,8 @@ import Colog
 import Types
 import JSON
 
-forecastUrl = "http://www.smhi.se/wpt-a/backend_tendayforecast/forecast/fetcher/2673730/10dFormat"
-observationsUrl = "http://www.smhi.se/wpt-a/backend_tendayforecast/analys/fetcher/2673730/10dFormat"
+forecastUrl = "http://www.smhi.se/wpt-a/backend_tendayforecast/forecast/fetcher/2667109/10dFormat"
+observationsUrl = "http://www.smhi.se/wpt-a/backend_tendayforecast/analys/fetcher/2667109/10dFormat"
 
 newtype Network = Network { _manager :: Manager }
 
@@ -41,21 +41,21 @@ fetchUrl url = do
     Network manager <- asks getNetwork
     resp <- liftIO $ httpLbs url manager
     let body = responseBody resp
-    case parseHours body of
-      Just d -> return d
-      Nothing -> do
-          log W "Could not parse response"
+    case parseHoursE body of
+      Right d -> return d
+      Left e -> do
+          log W $ "Could not parse response " <> pack e
           return []
       
 
 fetch :: (WithLog env Message m, WithNetwork env m) => RecordType -> m [Hour]
-fetch Forecast = do
+fetch Forecasts = do
     hours <- fetchUrl forecastUrl
     let lh = Prelude.length hours
     log I $ "Fetched " <> pack (show lh) <> " forecasts"
     return hours
 
-fetch Observation = do
+fetch Observations = do
     hours <- fetchUrl observationsUrl
     let lh = Prelude.length hours
     log I $ "Fetched " <> pack (show lh) <> " observations"

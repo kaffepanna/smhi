@@ -13,15 +13,19 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans
 import Control.Monad.Reader
-import System.Environment
 
+import Env
 import Types
 import JSON
 import Persistence
 import Network
 
 import Data.Text
+import qualified Data.ByteString.Char8 as Bs
 import Data.Maybe
+
+import Database.Beam.Postgres
+import Database.PostgreSQL.Simple
 
 data Env m = Env { _persistence :: Persistence
                  , _network :: Network
@@ -30,7 +34,7 @@ data Env m = Env { _persistence :: Persistence
 newtype App e = App { unapp :: ReaderT (Env App) IO e }
     deriving (Monad, Functor, Applicative, MonadIO, MonadReader (Env App))
 
-instance HasPersistence (Env m) where
+instance HasBeam (Env m) where
     getPersistence = _persistence
 
 instance HasNetwork (Env m) where
@@ -43,21 +47,20 @@ instance HasLog (Env m) Message m where
 withApp :: Env App -> App () -> IO ()
 withApp env f = runReaderT (unapp f) env
 
--- environment variable with default value in io monad
-fromEnv :: String -> String -> IO String
-fromEnv d = fmap (fromMaybe d) . lookupEnv
+initPersistence :: String -> IO Persistence 
+initPersistence cs = do
+    conn <- connectPostgreSQL (Bs.pack cs)
+    let runBeam = runBeamPostgres conn
+    return $ Persistence runBeam
 
 main :: IO ()
 main = do
-    database <- fromEnv "data.db" "DATABASE"
+    database <- fromEnv "host=127.0.0.1 port=11632 dbname=smhi password=******* user=admin" "DATABASE"
 
     env <- Env <$> initPersistence database
                <*> initNetwork
                <*> pure richMessageAction
 
     withApp env $ do
-        prepare Observation
-        prepare Forecast
-
-        fetch Forecast    >>= upsert Forecast
-        fetch Observation >>= upsert Observation
+        fetch Forecasts >>= upsertForecasts
+        fetch Observations >>= upsertObservations

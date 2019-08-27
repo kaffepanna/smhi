@@ -41,6 +41,10 @@ extra-deps:
 - co-log-core-0.2.0.0@sha256:ca2368435e7516df08f928c6be99e44f1574139d97ece023fab0d8de72d95b12,3084
 - typerep-map-0.3.2@sha256:4fc9ab71a0004c879a262997155cfc5faf539456d148bbfd691f9ec70e5442cd,4831
 - torsor-0.1@sha256:9c6f152650322357bee013a224d9d7ec8e8ae9fe32d8cee45f1431c49b0129e2,558
+- beam-sqlite-0.4.0.0@sha256:00504aa701bd000eb2a9df2214c46bc81a8244b41fb2bee16433adf16b89a94f,2750
+- beam-migrate-0.4.0.1@sha256:c53948a84972f67e97ba9c56f3dda9abfed556ba2f1672dc3070eb2512791efb,4920
+- beam-postgres-0.4.0.0@sha256:a01443ce503cfc58cbe28f476252672282347579444b65f2925a12ba6a2c13f5,4173
+
 
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git

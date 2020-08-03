@@ -11,7 +11,11 @@
   <link rel="apple-touch-icon" href="icon.png">
   <!-- Place favicon.ico in the root directory -->
 
+  <!--
   <link rel="stylesheet" href="css/normalize.css">
+  -->
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/Chart.css">
   <link rel="stylesheet" href="css/main.css">
 
   <meta name="theme-color" content="#fafafa">
@@ -23,19 +27,103 @@
   <![endif]-->
 
   <!-- Add your site or application content here -->
-  <p>Hello world! This is HTML5 Boilerplate.</p>
+  <div class="container">
+    <div class="row">
+      <h1>SMHI Mean error in Tullinge</h1>
+    </div>
+    <div class="row">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
   <script src="js/vendor/modernizr-3.7.1.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
   <script>window.jQuery || document.write('<script src="js/vendor/jquery-3.4.1.min.js"><\/script>')</script>
+  <script src="js/vendor/Chart.js"></script>
   <script src="js/plugins.js"></script>
   <script src="js/main.js"></script>
 
-  <!-- Google Analytics: change UA-XXXXX-Y to be your site's ID. -->
   <script>
-    window.ga = function () { ga.q.push(arguments) }; ga.q = []; ga.l = +new Date;
-    ga('create', 'UA-XXXXX-Y', 'auto'); ga('set','transport','beacon'); ga('send', 'pageview')
+    var config = {
+      type: 'line',
+      data: {
+        datasets: [
+        ],
+      },
+      options: {
+        responsive: true,
+
+        scales: {
+          xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Hours (Before observations)'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Degrees'
+						}
+					}]
+        }
+      }
+    }
+
+    function transparentize(color, opacity) {
+			var alpha = opacity === undefined ? 0.5 : 1 - opacity;
+			return Color(color).alpha(alpha).rgbString();
+		}
+    var ctx = $('#chart');
+    var chart = new Chart(ctx, config);
+
+    var chartColors = {
+	    red: 'rgb(255, 99, 132)',
+	    orange: 'rgb(255, 159, 64)',
+	    yellow: 'rgb(255, 205, 86)',
+	    green: 'rgb(75, 192, 192)',
+	    blue: 'rgb(54, 162, 235)',
+	    purple: 'rgb(153, 102, 255)',
+	    grey: 'rgb(201, 203, 207)'
+    };
+
+    $.getJSON("/api/mae", function(d) {
+      var mae = d.map(function(mae) { return mae.ae; }); 
+      var max = d.map(function(mae) { return mae.max; });
+      var min = d.map(function(mae) { return mae.min; });
+      var hours  = d.map(function(mae) {return mae.age; });
+
+      config.data.labels = hours;
+
+      config.data.datasets = [
+        {
+          label: "Min Error",
+          borderColor: chartColors.orange,
+          backgroundColor: transparentize(chartColors.orange),
+          data: min,
+          fill: '+1'
+        },
+        {
+          label: "MAE",
+          borderColor: chartColors.blue,
+          backgroundColor: transparentize(chartColors.blue),
+          data: mae,
+          fill: false
+        },
+        {
+          label: "Max Error",
+          borderColor: chartColors.red,
+          backgroundColor: transparentize(chartColors.red),
+          data: max,
+          fill: '-1'
+        },
+        
+      ];
+      chart.update();
+    });
   </script>
-  <script src="https://www.google-analytics.com/analytics.js" async></script>
 </body>
 
 </html>

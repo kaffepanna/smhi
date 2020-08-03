@@ -1,3 +1,5 @@
 .stack-work/
 smhi.cabal
+smhi-api-root
+smhi-scraper-root
 *~

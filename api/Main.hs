@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 module Main where
 import Prelude hiding (log)
 import qualified Data.ByteString.Char8 as Bs
@@ -57,7 +58,9 @@ application env = genericServeT (runApp env) appServer
 initPersistence :: String -> IO Persistence 
 initPersistence cs = do
     connPool <- createPool (connectPostgreSQL (Bs.pack cs)) close 2 60 10
-    let runBeam pg = withResource connPool $ \c -> runBeamPostgres c pg
+    let runBeam pg = withResource connPool $ \c -> runBeamPostgresDebug putStrLn c pg
+    Just !db <- runBeam migrateDB
+    putStrLn "Migration should be run"
     return $ Persistence runBeam
 
 logRequests logAction req c i = usingLoggerT logAction (logInfo "request")

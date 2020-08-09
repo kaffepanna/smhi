@@ -14,7 +14,7 @@ services:
     environment:
       DATABASE: "host=database dbname=smhi password=never4get user=smhi"
   database:
-    image: postgres:latest
+    image: postgres # smhi-database:latest
     environment:
       POSTGRES_PASSWORD: never4get
       POSTGRES_USER: smhi

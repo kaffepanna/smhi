@@ -1,4 +1,4 @@
 FROM postgres
 
-COPY database.sql /docker-entrypoint-initdb.d/
+COPY smhi.sql /docker-entrypoint-initdb.d/smhi.sql
 

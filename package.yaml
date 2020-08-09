@@ -36,6 +36,7 @@ dependencies:
 - beam-core
 - postgresql-simple
 - beam-postgres
+- beam-migrate
 - servant
 - servant-server
 - resource-pool

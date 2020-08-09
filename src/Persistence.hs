@@ -3,8 +3,12 @@ module Persistence where
 
 import Prelude hiding (log)
 
+import Persistence.Migration
+
 import Control.Monad.Reader
 import Control.Monad (forM_)
+import Database.Beam.Migrate.Simple
+import Database.Beam.Postgres.Migrate as Pgm
 import qualified Database.Beam.Postgres as Pg
 import qualified Database.Beam.Postgres.Full as Pgf
 import Database.Beam as B
@@ -27,12 +31,17 @@ class HasBeam env where
 instance HasBeam Persistence where
     getPersistence = id
 
-data SmhiDb f = SmhiDb { smhiForecasts :: f (TableEntity ForecastT)
-                       , smhiObservations :: f (TableEntity ObservationT)
-                       } deriving (Generic, Database be)
+allowDestructive :: Monad m => BringUpToDateHooks m
+allowDestructive = defaultUpToDateHooks { runIrreversibleHook = pure True }
 
-smhiDb :: DatabaseSettings be SmhiDb
-smhiDb = defaultDbSettings
+migrateDB = bringUpToDateWithHooks allowDestructive Pgm.migrationBackend initialSetupStep
+
+-- smhiDb :: DatabaseSettings be SmhiDb
+-- smhiDb = defaultDbSettings
+--
+smhiDb :: DatabaseSettings Pg.Postgres SmhiDb
+smhiDb = unCheckDatabase $ evaluateDatabase initialSetupStep
+
 
 upsertForecasts :: (WithLog env Message m, WithBeam env m) => [Forecast] -> m ()
 upsertForecasts forecasts = do
@@ -58,16 +67,16 @@ getMAE :: (WithLog env Message m, WithBeam env m) => m [MAE]
 getMAE = do
     Persistence runBeam <- asks getPersistence
     r <- liftIO . runBeam . runSelectReturningList . select $
-        aggregate_ (\(obs, fcs) -> let age = group_ $ hoursSinceEpoch_ (start obs) - hoursSinceEpoch_ (T.time fcs)
-                                       err = fromMaybe_ 0 (avg_ $ abs (temperature fcs - temperature obs))
-                                       mn  = fromMaybe_ 0 (min_ $ abs (temperature fcs - temperature obs))
-                                       mx  = fromMaybe_ 0 (max_ $ abs (temperature fcs - temperature obs))
+        aggregate_ (\(obs, fcs) -> let age = group_ $ hoursSinceEpoch_ (hourStart obs) - hoursSinceEpoch_ (T.hourTime fcs)
+                                       err = fromMaybe_ 0 (avg_ $ abs (hourTemperature fcs - hourTemperature obs))
+                                       mn  = fromMaybe_ 0 (min_ $ abs (hourTemperature fcs - hourTemperature obs))
+                                       mx  = fromMaybe_ 0 (max_ $ abs (hourTemperature fcs - hourTemperature obs))
 
                                     in (age, err, mx, mn)) $ do
             fcs <- all_ (smhiForecasts smhiDb)
             obs <- all_ (smhiObservations smhiDb)
 
-            guard_ (start obs ==. start fcs)
+            guard_ (hourStart obs ==. hourStart fcs)
             pure (obs, fcs)
     return $ uncurry4 MAE <$> r
 

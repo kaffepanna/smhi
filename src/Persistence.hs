@@ -42,7 +42,6 @@ migrateDB = bringUpToDateWithHooks allowDestructive Pgm.migrationBackend initial
 smhiDb :: DatabaseSettings Pg.Postgres SmhiDb
 smhiDb = unCheckDatabase $ evaluateDatabase initialSetupStep
 
-
 upsertForecasts :: (WithLog env Message m, WithBeam env m) => [Forecast] -> m ()
 upsertForecasts forecasts = do
    Persistence runBeam <- asks getPersistence

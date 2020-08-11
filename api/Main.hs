@@ -55,15 +55,14 @@ runApp env f = runReaderT (unapp f) env
 application :: Env App -> Application
 application env = genericServeT (runApp env) appServer
 
-initPersistence :: String -> IO Persistence 
-initPersistence cs = do
+initPersistence logAction cs = do
     connPool <- createPool (connectPostgreSQL (Bs.pack cs)) close 2 60 10
-    let runBeam pg = withResource connPool $ \c -> runBeamPostgresDebug putStrLn c pg
+    let logger msg = usingLoggerT logAction . logDebug $ "[beam] " <> T.pack msg
+    let runBeam pg = withResource connPool $ \c -> runBeamPostgresDebug logger c pg
     Just !db <- runBeam migrateDB
-    putStrLn "Migration should be run"
     return $ Persistence runBeam
 
-logRequests logAction req c i = usingLoggerT logAction (logInfo "request")
+logRequests logAction req c i = usingLoggerT logAction (logInfo $ "[request] " <> T.pack (show req))
 
 settings la = setPort 3000
          $ setLogger (logRequests la)
@@ -78,7 +77,7 @@ main = do
 
     let logAction = richMessageAction
 
-    env <- Env <$> initPersistence database 
+    env <- Env <$> initPersistence richMessageAction database
                <*> pure richMessageAction
 
     putStrLn "Starting server on 3000"

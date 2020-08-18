@@ -9,7 +9,6 @@
 {-# LANGUAGE BangPatterns #-}
 module Main where
 import Prelude hiding (log)
-import qualified Data.ByteString.Char8 as Bs
 import Colog
 import Colog.Actions as CA
 
@@ -19,6 +18,8 @@ import Control.Monad.Trans
 import Data.Pool
 import Data.Proxy
 import Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
+import Data.Maybe (fromJust)
 import Database.Beam.Postgres
 import Database.PostgreSQL.Simple
 
@@ -29,6 +30,7 @@ import Servant.API.Generic
 import Servant.Server.Generic
 import Network.Wai.Handler.Warp 
 
+import Lib
 import Env
 import Types
 import Persistence
@@ -55,12 +57,6 @@ runApp env f = runReaderT (unapp f) env
 application :: Env App -> Application
 application env = genericServeT (runApp env) appServer
 
-initPersistence logAction cs = do
-    connPool <- createPool (connectPostgreSQL (Bs.pack cs)) close 2 60 10
-    let logger msg = usingLoggerT logAction . logDebug $ "[beam] " <> T.pack msg
-    let runBeam pg = withResource connPool $ \c -> runBeamPostgresDebug logger c pg
-    Just !db <- runBeam migrateDB
-    return $ Persistence runBeam
 
 logRequests logAction req c i = usingLoggerT logAction (logInfo $ "[request] " <> T.pack (show req))
 
@@ -73,11 +69,15 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
 
-    database <- fromEnv "host=127.0.0.1 port=11632 dbname=smhi password=******* user=admin" "DATABASE"
+    dbConnString <-  "host="     <+> getEnv "DB_HOST"
+                 <> " port="     <+> getEnv "DB_PORT"
+                 <> " user="     <+> getEnv "DB_USER"
+                 <> " password=" <+> getEnv "DB_PASSWORD"
+
 
     let logAction = richMessageAction
 
-    env <- Env <$> initPersistence richMessageAction database
+    env <- Env <$> initPersistence richMessageAction (fromJust dbConnString)
                <*> pure richMessageAction
 
     putStrLn "Starting server on 3000"

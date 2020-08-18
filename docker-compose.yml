@@ -12,7 +12,11 @@ services:
     image: smhi-api:latest
     entrypoint: ./smhi-api
     environment:
-      DATABASE: "host=database dbname=smhi password=never4get user=smhi"
+     DB_HOST: database
+     DB_PORT: 5432
+     DB_NAME: smhi
+     DB_USER: smhi
+     DB_PASSWD: never4get
   database:
     image: postgres # smhi-database:latest
     environment:

@@ -14,6 +14,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans
 import Control.Monad.Reader
 
+import Lib
 import Env
 import Types
 import JSON
@@ -21,7 +22,7 @@ import Persistence
 import Network
 
 import Data.Text
-import qualified Data.ByteString.Char8 as Bs
+import Data.Text.Encoding (encodeUtf8)
 import Data.Maybe
 
 import Database.Beam.Postgres
@@ -47,17 +48,20 @@ instance HasLog (Env m) Message m where
 withApp :: Env App -> App () -> IO ()
 withApp env f = runReaderT (unapp f) env
 
-initPersistence :: String -> IO Persistence 
-initPersistence cs = do
-    conn <- connectPostgreSQL (Bs.pack cs)
-    let runBeam = runBeamPostgres conn
-    return $ Persistence runBeam
+-- initPersistence :: Text -> IO Persistence 
+-- initPersistence cs = do
+--     conn <- connectPostgreSQL (encodeUtf8 cs)
+--     let runBeam = runBeamPostgres conn
+--     return $ Persistence runBeam
 
 main :: IO ()
 main = do
-    database <- fromEnv "host=127.0.0.1 port=11632 dbname=smhi password=******* user=admin" "DATABASE"
+    dbConnString <-  "host="     <+> getEnv "DB_HOST"
+                 <> " port="     <+> getEnv "DB_PORT"
+                 <> " user="     <+> getEnv "DB_USER"
+                 <> " password=" <+> getEnv "DB_PASSWORD"
 
-    env <- Env <$> initPersistence database
+    env <- Env <$> initPersistence richMessageAction (fromJust dbConnString)
                <*> initNetwork
                <*> pure richMessageAction
 

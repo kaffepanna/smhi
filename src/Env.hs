@@ -1,9 +1,9 @@
 module Env where
 
+import Data.Text as T
 import Data.Maybe
-import System.Environment
+import System.Environment as E
 
-fromEnv :: String -> String -> IO String
-fromEnv d = fmap (fromMaybe d) . lookupEnv
-
+getEnv :: Text -> IO (Maybe Text)
+getEnv t = E.lookupEnv (unpack t) >>= \mt -> pure $ pack <$> mt
 

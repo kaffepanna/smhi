@@ -1,6 +1,9 @@
 module Lib
-    ( someFunc
-    ) where
+     where
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+import Data.Text
+import Data.Maybe
+
+
+(<+>) :: Text -> IO (Maybe Text) -> IO (Maybe Text)
+t <+> imt = fmap (t <>) <$> imt

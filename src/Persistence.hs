@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ConstraintKinds, DeriveAnyClass, DeriveGeneric, TypeApplications, OverloadedStrings #-}
+{-# LANGUAGE RankNTypes, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, ConstraintKinds, DeriveAnyClass, DeriveGeneric, TypeApplications, OverloadedStrings, BangPatterns #-}
 module Persistence where
 
 import Prelude hiding (log)
@@ -9,15 +9,17 @@ import Control.Monad.Reader
 import Control.Monad (forM_)
 import Database.Beam.Migrate.Simple
 import Database.Beam.Postgres.Migrate as Pgm
+import Database.PostgreSQL.Simple
 import qualified Database.Beam.Postgres as Pg
 import qualified Database.Beam.Postgres.Full as Pgf
 import Database.Beam as B
 import Database.Beam.Backend.SQL
 import Colog
-
 import Data.Maybe
 import Data.Time
-import Data.Text (pack)
+import Data.Text as T
+import Data.Pool
+import Data.Text.Encoding (encodeUtf8)
 import Types as T
 import Network
 
@@ -36,11 +38,15 @@ allowDestructive = defaultUpToDateHooks { runIrreversibleHook = pure True }
 
 migrateDB = bringUpToDateWithHooks allowDestructive Pgm.migrationBackend initialSetupStep
 
--- smhiDb :: DatabaseSettings be SmhiDb
--- smhiDb = defaultDbSettings
---
 smhiDb :: DatabaseSettings Pg.Postgres SmhiDb
 smhiDb = unCheckDatabase $ evaluateDatabase initialSetupStep
+
+initPersistence logAction cs = do
+    connPool <- createPool (connectPostgreSQL (encodeUtf8 cs)) close 2 60 10
+    let logger msg = usingLoggerT logAction . logDebug $ "[beam] " <> T.pack msg
+    let runBeam pg = withResource connPool $ \c -> Pg.runBeamPostgresDebug logger c pg
+    Just !db <- runBeam migrateDB
+    return $ Persistence runBeam
 
 upsertForecasts :: (WithLog env Message m, WithBeam env m) => [Forecast] -> m ()
 upsertForecasts forecasts = do

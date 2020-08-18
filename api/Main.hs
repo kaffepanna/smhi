@@ -10,23 +10,16 @@
 module Main where
 import Prelude hiding (log)
 import Colog
-import Colog.Actions as CA
 
 import Control.Monad.Reader
 import Control.Monad.Trans
 
-import Data.Pool
-import Data.Proxy
 import Data.Text as T
-import Data.Text.Encoding (encodeUtf8)
 import Data.Maybe (fromJust)
-import Database.Beam.Postgres
-import Database.PostgreSQL.Simple
 
 import System.IO
 
 import Servant
-import Servant.API.Generic
 import Servant.Server.Generic
 import Network.Wai.Handler.Warp 
 

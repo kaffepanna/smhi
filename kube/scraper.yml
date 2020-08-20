@@ -1,0 +1,31 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: smhi-scraper
+  labels:
+    app: smhi
+spec:
+  schedule: "*/30 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: smhi-scraper
+            image: eu.gcr.io/smhi-285408/smhi-scraper@sha256:d91128ae1ae8d4418a3770d1b105c9d52f9a2534970318fc1f25799cfe255b0e
+            env:
+              - name: DB_HOST
+                value: "smhi-postgres"
+              - name: DB_PORT
+                value: "5432"
+              - name: DB_USER
+                valueFrom:
+                  secretKeyRef:
+                    name: "db-user"
+                    key: "username"
+              - name: DB_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: "db-user"
+                    key: "password"
+          restartPolicy: OnFailure

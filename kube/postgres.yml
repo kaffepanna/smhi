@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smhi-postgres-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smhi-postgres
+  labels:
+    app: smhi
+spec:
+  ports:
+    - port: 5432
+  selector:
+    app: smhi
+    tier: database
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smhi-postgres
+  labels:
+    app: smhi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smhi
+      tier: database
+  template:
+    metadata:
+      name: smhi-postgres
+      labels:
+        app: smhi
+        tier: database
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:latest
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "db-user"
+                  key: "username"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "db-user"
+                  key: "password"
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: "db-user"
+                  key: "username"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: "/var/lib/postgresql"
+              name: data-volume 
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: smhi-postgres-pv-claim

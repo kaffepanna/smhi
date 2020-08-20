@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smhi-api
+  labels:
+    app: smhi
+spec:
+  ports:
+    - port: 3000
+  selector:
+    app: smhi
+    tier: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smhi-api
+  labels:
+    app: smhi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smhi
+      tier: backend
+  template:
+    metadata:
+      name: smhi-api
+      labels:
+        app: smhi
+        tier: backend
+    spec:
+      containers:
+        - name: api
+          image: "eu.gcr.io/smhi-285408/smhi-api@sha256:4e8f718eddf40a4792bedcbde57cc79d8dcfdfd7fe048df324ac71926ad5c89a"
+          env:
+            - name: DB_HOST
+              value: "smhi-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: "db-user"
+                  key: "username"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "db-user"
+                  key: "password"
+          ports:
+            - containerPort: 3000 

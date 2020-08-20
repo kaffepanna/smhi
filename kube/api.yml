@@ -5,8 +5,11 @@ metadata:
   labels:
     app: smhi
 spec:
+  type: LoadBalancer
   ports:
-    - port: 3000
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
   selector:
     app: smhi
     tier: backend

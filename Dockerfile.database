@@ -1,4 +1,0 @@
-FROM postgres
-
-COPY smhi.sql /docker-entrypoint-initdb.d/smhi.sql
-

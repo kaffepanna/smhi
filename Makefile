@@ -40,10 +40,8 @@ $(foreach sub,$(EXECS),$(eval $(call VARIABLES_template,$(sub))))
 
 default: all
 
-all: $(EXECS) smhi-nginx smhi-database
+all: $(EXECS) smhi-nginx
 
 smhi-nginx:
 	docker build -t smhi-nginx:latest -f Dockerfile.nginx .
-smhi-database:
-	docker build -t smhi-database:latest -f Dockerfile.database . 
 

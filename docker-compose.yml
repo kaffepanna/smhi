@@ -16,7 +16,18 @@ services:
      DB_PORT: 5432
      DB_NAME: smhi
      DB_USER: smhi
-     DB_PASSWD: never4get
+     DB_PASSWORD: never4get
+  scraper:
+    depends_on:
+      - database
+    image: smhi-scraper:latest
+    entrypoint: ./smhi-scraper
+    environment:
+     DB_HOST: database
+     DB_PORT: 5432
+     DB_NAME: smhi
+     DB_USER: smhi
+     DB_PASSWORD: never4get
   database:
     image: postgres # smhi-database:latest
     environment:

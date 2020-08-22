@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 module JSON where
 
 import Data.Time
@@ -9,12 +11,16 @@ import qualified Data.Vector as V
 import Control.Monad.Extra (concatMapM)
 import Control.Applicative ((<|>))
 import qualified Data.ByteString.Lazy as BS
+import Control.Monad.Identity
 
 instance ToJSON MAE where
     toJSON (MAE age err mx mn) = object ["age"   .= age
                                         ,"ae" .= err
                                         ,"max"   .= mx
                                         ,"min"   .= mn]
+
+instance ToJSON (HourT Identity) where
+  toEncoding = genericToEncoding defaultOptions
 
 hourParser :: UTCTime -> Value -> Parser Hour
 hourParser app = withObject "Hour" $ \o -> do

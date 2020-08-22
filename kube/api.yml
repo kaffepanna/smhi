@@ -35,7 +35,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: "eu.gcr.io/smhi-285408/smhi-api@sha256:4e8f718eddf40a4792bedcbde57cc79d8dcfdfd7fe048df324ac71926ad5c89a"
+          image: "eu.gcr.io/smhi-285408/smhi-api@sha256:fc56e47e4fb000fd1f6badeec3e48c7a9adbcdc6d165e2f116091af359cea95e"
           env:
             - name: DB_HOST
               value: "smhi-postgres"

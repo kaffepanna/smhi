@@ -68,6 +68,15 @@ upsertObservations observations = do
 
 hoursSinceEpoch_ c = valueExpr_ $ as_ @Int $ customExpr_ (\t -> "CAST (EXTRACT(EPOCH FROM " <> t <> ") AS Int)/3600") c
 
+
+getHours' table = do
+  Persistence runBeam <- asks getPersistence
+  liftIO . runBeam . runSelectReturningList . select $ all_ (table smhiDb)
+
+getHours :: (WithLog env Message m, WithBeam env m) => RecordType -> m [Hour]
+getHours Forecasts    = getHours' smhiForecasts
+getHours Observations = getHours' smhiObservations
+
 getMAE :: (WithLog env Message m, WithBeam env m) => m [MAE]
 getMAE = do
     Persistence runBeam <- asks getPersistence
